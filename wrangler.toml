@@ -1,0 +1,7 @@
+name = "splitter-share"
+main = "workers/splitter-worker.js"
+compatibility_date = "2026-06-01"
+
+[[kv_namespaces]]
+binding = "SPLITS"
+id = "replace-with-kv-namespace-id"

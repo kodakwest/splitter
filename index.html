@@ -1,0 +1,1342 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Splitter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0e0f0d;
+      --panel: #171916;
+      --panel-2: #20231e;
+      --line: #33382f;
+      --line-strong: #4a5144;
+      --text: #f2f0e8;
+      --muted: #a8aca0;
+      --soft: #d3d0c4;
+      --accent: #56b6a7;
+      --accent-strong: #74d8c7;
+      --danger: #ff8e7d;
+      --warn: #f4c96b;
+      --shadow: 0 18px 70px rgba(0, 0, 0, .32);
+      --radius: 8px;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(180deg, rgba(86, 182, 167, .07), transparent 280px),
+        var(--bg);
+      color: var(--text);
+    }
+
+    button, input, textarea, select {
+      font: inherit;
+    }
+
+    button {
+      min-height: 46px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel-2);
+      color: var(--text);
+      cursor: pointer;
+      transition: border-color .16s ease, background .16s ease, transform .16s ease;
+    }
+
+    button:hover { border-color: var(--accent); }
+    button:active { transform: translateY(1px); }
+    button:disabled {
+      cursor: not-allowed;
+      opacity: .45;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #10120f;
+      color: var(--text);
+      padding: 10px 12px;
+      outline: none;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(86, 182, 167, .16);
+    }
+
+    textarea {
+      min-height: 128px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    .shell {
+      width: min(1080px, 100%);
+      margin: 0 auto;
+      padding: 18px;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      margin: -18px -18px 18px;
+      padding: 14px 18px 12px;
+      background: rgba(14, 15, 13, .88);
+      border-bottom: 1px solid rgba(74, 81, 68, .7);
+      backdrop-filter: blur(18px);
+    }
+
+    .brandline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .logo {
+      display: grid;
+      width: 36px;
+      height: 36px;
+      flex: 0 0 auto;
+      place-items: center;
+      border: 1px solid rgba(86, 182, 167, .5);
+      border-radius: var(--radius);
+      background: rgba(86, 182, 167, .11);
+      color: var(--accent-strong);
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 700;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      margin-bottom: 1px;
+      font-size: clamp(1.35rem, 3vw, 2rem);
+      letter-spacing: 0;
+    }
+
+    .subhead {
+      margin: 0;
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    .privacy-pill {
+      max-width: 360px;
+      color: var(--soft);
+      font-size: .78rem;
+      line-height: 1.35;
+      text-align: right;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(42px, 1fr));
+      gap: 8px;
+    }
+
+    .step-dot {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 8px;
+      color: var(--muted);
+      background: rgba(23, 25, 22, .72);
+    }
+
+    .step-dot .num {
+      display: grid;
+      width: 24px;
+      height: 24px;
+      flex: 0 0 auto;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--panel-2);
+      color: var(--muted);
+      font-family: "JetBrains Mono", monospace;
+      font-size: .78rem;
+      font-weight: 700;
+    }
+
+    .step-dot span:last-child {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: .83rem;
+      font-weight: 600;
+    }
+
+    .step-dot.active {
+      border-color: rgba(86, 182, 167, .8);
+      color: var(--text);
+      background: rgba(86, 182, 167, .12);
+    }
+
+    .step-dot.done .num,
+    .step-dot.active .num {
+      background: var(--accent);
+      color: #07110f;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .stage {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(23, 25, 22, .86);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .step {
+      display: none;
+      padding: 20px;
+    }
+
+    .step.active { display: block; }
+
+    .step h2 {
+      margin-bottom: 8px;
+      font-size: clamp(1.3rem, 4vw, 2.15rem);
+      letter-spacing: 0;
+    }
+
+    .lede {
+      max-width: 680px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .dropzone {
+      display: grid;
+      min-height: 260px;
+      margin-top: 18px;
+      place-items: center;
+      border: 1px dashed var(--line-strong);
+      border-radius: var(--radius);
+      background: #11130f;
+      text-align: center;
+      padding: 24px;
+    }
+
+    .dropzone.dragging {
+      border-color: var(--accent);
+      background: rgba(86, 182, 167, .09);
+    }
+
+    .drop-icon {
+      width: 74px;
+      height: 74px;
+      margin: 0 auto 14px;
+      border: 1px solid rgba(86, 182, 167, .5);
+      border-radius: var(--radius);
+      display: grid;
+      place-items: center;
+      color: var(--accent);
+      font-family: "JetBrains Mono", monospace;
+      font-size: 1.7rem;
+      font-weight: 700;
+    }
+
+    .file-input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+    }
+
+    .primary,
+    .secondary,
+    .ghost,
+    .danger {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 0 16px;
+      font-weight: 700;
+    }
+
+    .primary {
+      border-color: transparent;
+      background: var(--accent);
+      color: #07110f;
+    }
+
+    .primary:hover { border-color: var(--accent-strong); background: var(--accent-strong); }
+    .secondary { background: #242820; }
+    .ghost { background: transparent; }
+    .danger { border-color: rgba(255, 142, 125, .45); color: var(--danger); background: rgba(255, 142, 125, .08); }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .field label {
+      display: block;
+      margin: 0 0 6px;
+      color: var(--muted);
+      font-size: .78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .side {
+      position: sticky;
+      top: 122px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(23, 25, 22, .86);
+      padding: 14px;
+    }
+
+    .panel h3 {
+      margin-bottom: 10px;
+      font-size: 1rem;
+    }
+
+    .receipt-thumb {
+      width: 100%;
+      max-height: 280px;
+      object-fit: contain;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #080907;
+    }
+
+    .mono {
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: .88rem;
+      line-height: 1.45;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      flex: 0 0 auto;
+      border: 2px solid rgba(86, 182, 167, .25);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .9s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .item-list,
+    .assign-list,
+    .summary-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .item-row {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1.35fr) 82px 112px auto;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #11130f;
+      padding: 10px;
+    }
+
+    .item-row input[type="checkbox"] {
+      width: 22px;
+      min-height: 22px;
+      accent-color: var(--accent);
+    }
+
+    .icon-button {
+      width: 44px;
+      min-height: 44px;
+      padding: 0;
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 700;
+    }
+
+    .people-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 14px 0;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #10120f;
+      color: var(--text);
+      padding: 6px 10px;
+      font-size: .88rem;
+      font-weight: 700;
+    }
+
+    .swatch {
+      width: 12px;
+      height: 12px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: var(--chip, var(--accent));
+    }
+
+    .assign-row {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #11130f;
+      padding: 12px;
+    }
+
+    .assign-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .assign-title {
+      min-width: 0;
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+
+    .price {
+      flex: 0 0 auto;
+      color: var(--soft);
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 700;
+    }
+
+    .assign-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .person-toggle {
+      min-height: 40px;
+      padding: 0 12px;
+      border-color: color-mix(in srgb, var(--person-color), #000 35%);
+      background: rgba(255, 255, 255, .03);
+    }
+
+    .person-toggle.selected {
+      background: color-mix(in srgb, var(--person-color), transparent 72%);
+      border-color: var(--person-color);
+    }
+
+    .calc-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #11130f;
+      padding: 14px;
+    }
+
+    .calc-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .calc-name {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      gap: 8px;
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+
+    .table {
+      display: grid;
+      gap: 7px;
+      color: var(--soft);
+      font-size: .92rem;
+    }
+
+    .table-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      border-bottom: 1px solid rgba(74, 81, 68, .48);
+      padding-bottom: 7px;
+    }
+
+    .table-row:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .total {
+      color: var(--text);
+      font-size: 1.25rem;
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 800;
+    }
+
+    .mini-list {
+      margin: 10px 0 0;
+      padding: 0;
+      list-style: none;
+      color: var(--muted);
+      font-size: .88rem;
+      line-height: 1.55;
+    }
+
+    .mini-list li {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      border-top: 1px solid rgba(74, 81, 68, .36);
+      padding: 6px 0;
+    }
+
+    .share-block {
+      display: grid;
+      gap: 12px;
+    }
+
+    .pay-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .pay-links a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 36px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 0 10px;
+      text-decoration: none;
+      font-size: .84rem;
+      font-weight: 700;
+    }
+
+    .notice {
+      border: 1px solid rgba(244, 201, 107, .35);
+      border-radius: var(--radius);
+      background: rgba(244, 201, 107, .08);
+      color: #f7df9b;
+      padding: 12px;
+      line-height: 1.45;
+      font-size: .9rem;
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 860px) {
+      main { grid-template-columns: 1fr; }
+      .side { position: static; }
+      .privacy-pill { display: none; }
+      .steps { gap: 6px; }
+      .step-dot { justify-content: center; padding: 7px 4px; }
+      .step-dot span:last-child { display: none; }
+      .item-row {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+      }
+      .item-row .qty-input,
+      .item-row .price-input {
+        grid-column: 2 / 4;
+      }
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brandline">
+        <div class="brand">
+          <div class="logo" aria-hidden="true">%</div>
+          <div>
+            <h1>Splitter</h1>
+            <p class="subhead">AI-powered group receipt splitter</p>
+          </div>
+        </div>
+        <p class="privacy-pill">Your receipt image never leaves this device &mdash; all processing is local.</p>
+      </div>
+      <nav class="steps" aria-label="Progress">
+        <div class="step-dot active" data-step-dot="1"><span class="num">1</span><span>Upload</span></div>
+        <div class="step-dot" data-step-dot="2"><span class="num">2</span><span>Review</span></div>
+        <div class="step-dot" data-step-dot="3"><span class="num">3</span><span>Assign</span></div>
+        <div class="step-dot" data-step-dot="4"><span class="num">4</span><span>Split</span></div>
+        <div class="step-dot" data-step-dot="5"><span class="num">5</span><span>Share</span></div>
+      </nav>
+    </header>
+
+    <main>
+      <section class="stage" aria-live="polite">
+        <section class="step active" data-step="1">
+          <h2>Upload a receipt</h2>
+          <p class="lede">Take a photo, choose one from your gallery, or drop an image here. OCR runs inside this browser tab.</p>
+          <div class="dropzone" id="dropzone">
+            <div>
+              <div class="drop-icon" aria-hidden="true">OCR</div>
+              <p><strong>Camera, gallery, or drag and drop</strong></p>
+              <p class="subhead">JPG, PNG, WEBP, and most browser-readable receipt images work.</p>
+              <div class="actions" style="justify-content:center">
+                <label class="primary" for="receiptInput">Choose image</label>
+                <input class="file-input" id="receiptInput" type="file" accept="image/*" capture="environment">
+                <button class="secondary" id="skipOcrBtn" type="button">Enter manually</button>
+              </div>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="primary" id="runOcrBtn" type="button" disabled>Read receipt</button>
+          </div>
+        </section>
+
+        <section class="step" data-step="2">
+          <h2>Review items</h2>
+          <p class="lede">Check the OCR results, edit names, prices, and quantities, then keep only the items that should be split.</p>
+          <div class="notice hidden" id="ocrNotice"></div>
+          <div class="item-list" id="itemList"></div>
+          <div class="actions">
+            <button class="secondary" id="addItemBtn" type="button">Add item</button>
+            <button class="primary" id="toAssignBtn" type="button">Assign items</button>
+          </div>
+        </section>
+
+        <section class="step" data-step="3">
+          <h2>Assign items</h2>
+          <p class="lede">Add people, then tap one or more names on each item. Shared items are divided evenly between selected people.</p>
+          <div class="grid-2">
+            <div class="field">
+              <label for="personName">Person</label>
+              <input id="personName" placeholder="Alex">
+            </div>
+            <div class="field">
+              <label for="paymentHandle">Payment handle</label>
+              <input id="paymentHandle" placeholder="@alex">
+            </div>
+          </div>
+          <div class="actions">
+            <button class="secondary" id="addPersonBtn" type="button">Add person</button>
+          </div>
+          <div class="people-bar" id="peopleBar"></div>
+          <div class="assign-list" id="assignList"></div>
+          <div class="actions">
+            <button class="ghost" data-back="2" type="button">Back</button>
+            <button class="primary" id="toSplitBtn" type="button">Calculate split</button>
+          </div>
+        </section>
+
+        <section class="step" data-step="4">
+          <h2>Split</h2>
+          <p class="lede">Tax and tip are allocated proportionally by each person's assigned item subtotal.</p>
+          <div class="grid-2">
+            <div class="field">
+              <label for="taxAmount">Tax</label>
+              <input id="taxAmount" type="number" inputmode="decimal" step="0.01" min="0" value="0">
+            </div>
+            <div class="field">
+              <label for="tipMode">Tip</label>
+              <select id="tipMode">
+                <option value="percent">Percent of subtotal</option>
+                <option value="manual">Manual amount</option>
+              </select>
+            </div>
+            <div class="field" id="tipPercentField">
+              <label for="tipPercent">Tip percent</label>
+              <input id="tipPercent" type="number" inputmode="decimal" step="1" min="0" value="20">
+            </div>
+            <div class="field hidden" id="tipManualField">
+              <label for="tipManual">Tip amount</label>
+              <input id="tipManual" type="number" inputmode="decimal" step="0.01" min="0" value="0">
+            </div>
+          </div>
+          <div class="summary-list" id="calcList"></div>
+          <div class="actions">
+            <button class="ghost" data-back="3" type="button">Back</button>
+            <button class="primary" id="toShareBtn" type="button">Create share text</button>
+          </div>
+        </section>
+
+        <section class="step" data-step="5">
+          <h2>Share</h2>
+          <p class="lede">Send the plain-text summary or copy a link containing only the final split data. The receipt image is not included.</p>
+          <div class="share-block">
+            <div class="field">
+              <label for="shareText">Message</label>
+              <textarea id="shareText" readonly></textarea>
+            </div>
+            <div class="field">
+              <label for="shareUrl">Summary link</label>
+              <input id="shareUrl" readonly>
+            </div>
+            <div class="summary-list" id="shareCards"></div>
+          </div>
+          <div class="actions">
+            <button class="secondary" id="copyTextBtn" type="button">Copy message</button>
+            <button class="secondary" id="copyLinkBtn" type="button">Copy link</button>
+            <button class="ghost" data-back="4" type="button">Back</button>
+          </div>
+        </section>
+      </section>
+
+      <aside class="side" aria-label="Receipt details">
+        <section class="panel">
+          <h3>Receipt</h3>
+          <img id="receiptPreview" class="receipt-thumb hidden" alt="Uploaded receipt preview">
+          <p id="emptyPreview" class="subhead">No receipt selected yet.</p>
+        </section>
+        <section class="panel">
+          <h3>OCR status</h3>
+          <div class="status" id="ocrStatus">Waiting for an image.</div>
+        </section>
+        <section class="panel">
+          <h3>Detected amounts</h3>
+          <div class="table">
+            <div class="table-row"><span>Items</span><strong id="sideItemCount">0</strong></div>
+            <div class="table-row"><span>Subtotal</span><strong id="sideSubtotal">$0.00</strong></div>
+            <div class="table-row"><span>Tax</span><strong id="sideTax">$0.00</strong></div>
+            <div class="table-row"><span>Tip</span><strong id="sideTip">$0.00</strong></div>
+          </div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script>
+    const palette = ["#56b6a7", "#f4c96b", "#ff8e7d", "#8ab4f8", "#c58bff", "#7fd37a", "#f29bd2", "#d6a76c"];
+    const presets = [
+      { name: "You", handle: "@you" },
+      { name: "Alex", handle: "" },
+      { name: "Sam", handle: "" }
+    ];
+
+    const state = {
+      step: 1,
+      imageFile: null,
+      imageUrl: "",
+      rawText: "",
+      items: [],
+      people: presets.map((person, index) => ({ id: crypto.randomUUID(), color: palette[index], ...person })),
+      tax: 0,
+      detectedTotal: 0,
+      tipMode: "percent",
+      tipPercent: 20,
+      tipManual: 0,
+      calc: [],
+      sharedOnly: false
+    };
+
+    const els = {
+      receiptInput: document.querySelector("#receiptInput"),
+      dropzone: document.querySelector("#dropzone"),
+      runOcrBtn: document.querySelector("#runOcrBtn"),
+      skipOcrBtn: document.querySelector("#skipOcrBtn"),
+      receiptPreview: document.querySelector("#receiptPreview"),
+      emptyPreview: document.querySelector("#emptyPreview"),
+      ocrStatus: document.querySelector("#ocrStatus"),
+      ocrNotice: document.querySelector("#ocrNotice"),
+      itemList: document.querySelector("#itemList"),
+      addItemBtn: document.querySelector("#addItemBtn"),
+      toAssignBtn: document.querySelector("#toAssignBtn"),
+      personName: document.querySelector("#personName"),
+      paymentHandle: document.querySelector("#paymentHandle"),
+      addPersonBtn: document.querySelector("#addPersonBtn"),
+      peopleBar: document.querySelector("#peopleBar"),
+      assignList: document.querySelector("#assignList"),
+      toSplitBtn: document.querySelector("#toSplitBtn"),
+      taxAmount: document.querySelector("#taxAmount"),
+      tipMode: document.querySelector("#tipMode"),
+      tipPercent: document.querySelector("#tipPercent"),
+      tipManual: document.querySelector("#tipManual"),
+      tipPercentField: document.querySelector("#tipPercentField"),
+      tipManualField: document.querySelector("#tipManualField"),
+      calcList: document.querySelector("#calcList"),
+      toShareBtn: document.querySelector("#toShareBtn"),
+      shareText: document.querySelector("#shareText"),
+      shareUrl: document.querySelector("#shareUrl"),
+      shareCards: document.querySelector("#shareCards"),
+      copyTextBtn: document.querySelector("#copyTextBtn"),
+      copyLinkBtn: document.querySelector("#copyLinkBtn"),
+      sideItemCount: document.querySelector("#sideItemCount"),
+      sideSubtotal: document.querySelector("#sideSubtotal"),
+      sideTax: document.querySelector("#sideTax"),
+      sideTip: document.querySelector("#sideTip")
+    };
+
+    function money(value) {
+      return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(value) || 0);
+    }
+
+    function parseMoney(value) {
+      const parsed = Number.parseFloat(String(value).replace(/[^0-9.-]/g, ""));
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function lineTotal(item) {
+      return (Number(item.qty) || 0) * (Number(item.price) || 0);
+    }
+
+    function activeItems() {
+      return state.items.filter((item) => item.active);
+    }
+
+    function itemSubtotal() {
+      return activeItems().reduce((sum, item) => sum + lineTotal(item), 0);
+    }
+
+    function tipAmount() {
+      const subtotal = itemSubtotal();
+      return state.tipMode === "manual" ? state.tipManual : subtotal * (state.tipPercent / 100);
+    }
+
+    function setStep(step) {
+      state.step = step;
+      document.querySelectorAll("[data-step]").forEach((el) => el.classList.toggle("active", Number(el.dataset.step) === step));
+      document.querySelectorAll("[data-step-dot]").forEach((el) => {
+        const value = Number(el.dataset.stepDot);
+        el.classList.toggle("active", value === step);
+        el.classList.toggle("done", value < step);
+      });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      renderAll();
+    }
+
+    function setStatus(text, busy = false) {
+      els.ocrStatus.innerHTML = busy ? `<span class="spinner" aria-hidden="true"></span><span>${text}</span>` : text;
+    }
+
+    function showNotice(text) {
+      els.ocrNotice.textContent = text;
+      els.ocrNotice.classList.toggle("hidden", !text);
+    }
+
+    function handleFile(file) {
+      if (!file || !file.type.startsWith("image/")) return;
+      state.imageFile = file;
+      if (state.imageUrl) URL.revokeObjectURL(state.imageUrl);
+      state.imageUrl = URL.createObjectURL(file);
+      els.receiptPreview.src = state.imageUrl;
+      els.receiptPreview.classList.remove("hidden");
+      els.emptyPreview.classList.add("hidden");
+      els.runOcrBtn.disabled = false;
+      setStatus("Ready to read the receipt.");
+      renderSide();
+    }
+
+    async function runOcr() {
+      if (!state.imageFile || !window.Tesseract) return;
+      els.runOcrBtn.disabled = true;
+      setStatus("Reading image text...", true);
+      try {
+        const result = await Tesseract.recognize(state.imageFile, "eng", {
+          logger: (message) => {
+            if (message.status) {
+              const pct = message.progress ? ` ${Math.round(message.progress * 100)}%` : "";
+              setStatus(`${message.status}${pct}`, true);
+            }
+          }
+        });
+        state.rawText = result.data.text || "";
+        const parsed = parseReceipt(state.rawText);
+        state.items = parsed.items;
+        state.tax = parsed.tax;
+        state.detectedTotal = parsed.total;
+        if (parsed.tip > 0) {
+          state.tipMode = "manual";
+          els.tipMode.value = "manual";
+        }
+        els.taxAmount.value = state.tax.toFixed(2);
+        setStatus(`OCR complete. Found ${state.items.length} possible item${state.items.length === 1 ? "" : "s"}.`);
+        showNotice(state.items.length ? "OCR can misread receipts. Confirm each item before assigning." : "No clear line items were found. Add items manually below.");
+        if (!state.items.length) addBlankItem();
+        setStep(2);
+      } catch (error) {
+        setStatus("OCR failed. You can still enter items manually.");
+        showNotice(`OCR failed: ${error.message || "unknown error"}`);
+        if (!state.items.length) addBlankItem();
+        setStep(2);
+      } finally {
+        els.runOcrBtn.disabled = false;
+      }
+    }
+
+    function parseReceipt(text) {
+      const lines = text
+        .split(/\r?\n/)
+        .map((line) => line.replace(/\s+/g, " ").trim())
+        .filter(Boolean);
+      const skipWords = /(subtotal|total|amount due|balance|change|cash|credit|debit|visa|mastercard|amex|approval|auth|table|guest|server|receipt|invoice|date|time|tax|tip|gratuity)/i;
+      const taxWords = /(tax|sales tax)/i;
+      const tipWords = /(tip|gratuity)/i;
+      const totalWords = /\b(total|amount due|balance)\b/i;
+      const items = [];
+      let tax = 0;
+      let tip = 0;
+      let total = 0;
+
+      for (const line of lines) {
+        const amountMatch = line.match(/(-?\$?\d{1,4}(?:[,.]\d{2})?)\s*$/);
+        if (!amountMatch) continue;
+        const amount = parseMoney(amountMatch[1]);
+        if (amount <= 0) continue;
+
+        if (taxWords.test(line)) {
+          tax = amount;
+          continue;
+        }
+        if (tipWords.test(line)) {
+          tip = amount;
+          continue;
+        }
+        if (totalWords.test(line)) {
+          total = Math.max(total, amount);
+          continue;
+        }
+        if (skipWords.test(line)) continue;
+
+        const namePart = line.slice(0, line.length - amountMatch[0].length).trim();
+        if (!namePart || /^\d+$/.test(namePart)) continue;
+        const qtyMatch = namePart.match(/^(\d+)\s+(.+)$/);
+        const qty = qtyMatch ? Number(qtyMatch[1]) : 1;
+        const name = qtyMatch ? qtyMatch[2] : namePart;
+        if (name.length < 2) continue;
+        items.push({
+          id: crypto.randomUUID(),
+          name: titleCase(name.replace(/^[*#-]+\s*/, "")),
+          qty,
+          price: qty > 1 ? Number((amount / qty).toFixed(2)) : amount,
+          active: true,
+          assignees: []
+        });
+      }
+
+      state.tipManual = tip;
+      els.tipManual.value = tip.toFixed(2);
+      return { items: dedupeItems(items).slice(0, 40), tax, tip, total };
+    }
+
+    function titleCase(value) {
+      return value.toLowerCase().replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+    }
+
+    function dedupeItems(items) {
+      const seen = new Set();
+      return items.filter((item) => {
+        const key = `${item.name}|${item.qty}|${item.price}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
+    function addBlankItem() {
+      state.items.push(newBlankItem());
+      renderAll();
+    }
+
+    function newBlankItem() {
+      return {
+        id: crypto.randomUUID(),
+        name: "Item",
+        qty: 1,
+        price: 0,
+        active: true,
+        assignees: []
+      };
+    }
+
+    function renderItems() {
+      els.itemList.innerHTML = "";
+      if (!state.items.length) state.items.push(newBlankItem());
+      state.items.forEach((item) => {
+        const row = document.createElement("div");
+        row.className = "item-row";
+        row.innerHTML = `
+          <input type="checkbox" aria-label="Include item" ${item.active ? "checked" : ""} data-field="active">
+          <input aria-label="Item name" value="${escapeHtml(item.name)}" data-field="name">
+          <input class="qty-input" aria-label="Quantity" type="number" inputmode="decimal" min="0" step="1" value="${item.qty}" data-field="qty">
+          <input class="price-input" aria-label="Price each" type="number" inputmode="decimal" min="0" step="0.01" value="${item.price}" data-field="price">
+          <button class="icon-button danger" type="button" title="Remove item" aria-label="Remove item" data-remove="${item.id}">x</button>
+        `;
+        row.querySelectorAll("[data-field]").forEach((input) => {
+          input.addEventListener("input", () => {
+            const field = input.dataset.field;
+            if (field === "active") item.active = input.checked;
+            if (field === "name") item.name = input.value;
+            if (field === "qty") item.qty = Math.max(0, Number(input.value) || 0);
+            if (field === "price") item.price = Math.max(0, Number(input.value) || 0);
+            renderSide();
+          });
+          input.addEventListener("change", () => {
+            if (input.dataset.field === "active") item.active = input.checked;
+            renderSide();
+          });
+        });
+        row.querySelector("[data-remove]").addEventListener("click", () => {
+          state.items = state.items.filter((candidate) => candidate.id !== item.id);
+          renderAll();
+        });
+        els.itemList.appendChild(row);
+      });
+    }
+
+    function renderPeople() {
+      els.peopleBar.innerHTML = "";
+      state.people.forEach((person) => {
+        const chip = document.createElement("span");
+        chip.className = "chip";
+        chip.style.setProperty("--chip", person.color);
+        chip.innerHTML = `<span class="swatch"></span><span>${escapeHtml(person.name)}</span><button class="icon-button ghost" style="width:28px;min-height:28px" title="Remove person" aria-label="Remove ${escapeHtml(person.name)}">x</button>`;
+        chip.querySelector("button").addEventListener("click", () => {
+          state.people = state.people.filter((candidate) => candidate.id !== person.id);
+          state.items.forEach((item) => item.assignees = item.assignees.filter((id) => id !== person.id));
+          renderAll();
+        });
+        els.peopleBar.appendChild(chip);
+      });
+    }
+
+    function renderAssign() {
+      els.assignList.innerHTML = "";
+      activeItems().forEach((item) => {
+        const row = document.createElement("div");
+        row.className = "assign-row";
+        row.innerHTML = `
+          <div class="assign-head">
+            <div class="assign-title">${escapeHtml(item.name)} <span class="subhead">x${item.qty}</span></div>
+            <div class="price">${money(lineTotal(item))}</div>
+          </div>
+          <div class="assign-buttons"></div>
+        `;
+        const buttons = row.querySelector(".assign-buttons");
+        state.people.forEach((person) => {
+          const button = document.createElement("button");
+          const selected = item.assignees.includes(person.id);
+          button.type = "button";
+          button.className = `person-toggle ${selected ? "selected" : ""}`;
+          button.style.setProperty("--person-color", person.color);
+          button.innerHTML = `<span class="swatch" style="background:${person.color}"></span>${escapeHtml(person.name)}`;
+          button.addEventListener("click", () => {
+            item.assignees = selected ? item.assignees.filter((id) => id !== person.id) : [...item.assignees, person.id];
+            renderAssign();
+          });
+          buttons.appendChild(button);
+        });
+        els.assignList.appendChild(row);
+      });
+    }
+
+    function calculate() {
+      const subtotal = itemSubtotal();
+      const tax = state.tax;
+      const tip = tipAmount();
+      if (!activeItems().length && state.sharedOnly) return state.calc;
+      const byPerson = new Map(state.people.map((person) => [person.id, { person, subtotal: 0, items: [] }]));
+
+      activeItems().forEach((item) => {
+        const assignees = item.assignees.length ? item.assignees : state.people.map((person) => person.id);
+        const share = lineTotal(item) / Math.max(1, assignees.length);
+        assignees.forEach((personId) => {
+          const bucket = byPerson.get(personId);
+          if (!bucket) return;
+          bucket.subtotal += share;
+          bucket.items.push({ name: item.name, amount: share });
+        });
+      });
+
+      state.calc = [...byPerson.values()]
+        .filter((bucket) => bucket.subtotal > 0)
+        .map((bucket) => {
+          const ratio = subtotal > 0 ? bucket.subtotal / subtotal : 0;
+          const taxShare = tax * ratio;
+          const tipShare = tip * ratio;
+          return {
+            ...bucket,
+            tax: taxShare,
+            tip: tipShare,
+            total: bucket.subtotal + taxShare + tipShare
+          };
+        });
+      return state.calc;
+    }
+
+    function renderCalc() {
+      calculate();
+      els.calcList.innerHTML = "";
+      if (!state.calc.length) {
+        els.calcList.innerHTML = `<div class="notice">Add at least one person and assign an item to calculate the split.</div>`;
+        return;
+      }
+      state.calc.forEach((bucket) => els.calcList.appendChild(calcCard(bucket, false)));
+      renderSide();
+    }
+
+    function calcCard(bucket, includePayments) {
+      const card = document.createElement("div");
+      card.className = "calc-card";
+      const handle = bucket.person.handle || `@${bucket.person.name.toLowerCase().replace(/[^a-z0-9]+/g, "")}`;
+      card.innerHTML = `
+        <div class="calc-head">
+          <div class="calc-name"><span class="swatch" style="background:${bucket.person.color}"></span>${escapeHtml(bucket.person.name)}</div>
+          <div class="total">${money(bucket.total)}</div>
+        </div>
+        <div class="table">
+          <div class="table-row"><span>Subtotal</span><strong>${money(bucket.subtotal)}</strong></div>
+          <div class="table-row"><span>Tax</span><strong>${money(bucket.tax)}</strong></div>
+          <div class="table-row"><span>Tip</span><strong>${money(bucket.tip)}</strong></div>
+        </div>
+        <ul class="mini-list">
+          ${bucket.items.map((item) => `<li><span>${escapeHtml(item.name)}</span><strong>${money(item.amount)}</strong></li>`).join("")}
+        </ul>
+        ${includePayments ? `
+          <div class="pay-links">
+            <a href="https://venmo.com/${encodeURIComponent(handle.replace(/^@/, ""))}" target="_blank" rel="noreferrer">Venmo</a>
+            <a href="https://www.paypal.me/${encodeURIComponent(handle.replace(/^@/, ""))}/${bucket.total.toFixed(2)}" target="_blank" rel="noreferrer">PayPal</a>
+            <a href="https://cash.app/$${encodeURIComponent(handle.replace(/^@/, ""))}" target="_blank" rel="noreferrer">Cash App</a>
+          </div>
+        ` : ""}
+      `;
+      return card;
+    }
+
+    function renderShare() {
+      if (!state.sharedOnly) calculate();
+      const lines = state.calc.map((bucket) => {
+        const handle = bucket.person.handle || `@${bucket.person.name.toLowerCase().replace(/[^a-z0-9]+/g, "")}`;
+        return `Hey ${bucket.person.name} - your share is ${money(bucket.total)}. Venmo: ${handle}`;
+      });
+      const totals = `Subtotal ${money(itemSubtotal())} | Tax ${money(state.tax)} | Tip ${money(tipAmount())}`;
+      els.shareText.value = [totals, "", ...lines].join("\n");
+      const shareData = {
+        created: new Date().toISOString(),
+        totals,
+        people: state.calc.map((bucket) => ({
+          name: bucket.person.name,
+          handle: bucket.person.handle,
+          color: bucket.person.color,
+          subtotal: round2(bucket.subtotal),
+          tax: round2(bucket.tax),
+          tip: round2(bucket.tip),
+          total: round2(bucket.total),
+          items: bucket.items.map((item) => ({ name: item.name, amount: round2(item.amount) }))
+        }))
+      };
+      els.shareUrl.value = `${location.origin}${location.pathname}#share=${encodeShare(shareData)}`;
+      els.shareCards.innerHTML = "";
+      state.calc.forEach((bucket) => els.shareCards.appendChild(calcCard(bucket, true)));
+    }
+
+    function renderSide() {
+      els.sideItemCount.textContent = String(activeItems().length);
+      els.sideSubtotal.textContent = money(itemSubtotal());
+      els.sideTax.textContent = money(state.tax);
+      els.sideTip.textContent = money(tipAmount());
+    }
+
+    function renderAll() {
+      if (state.step === 2) renderItems();
+      if (state.step === 3) {
+        renderPeople();
+        renderAssign();
+      }
+      if (state.step === 4) renderCalc();
+      if (state.step === 5) renderShare();
+      els.tipPercentField.classList.toggle("hidden", state.tipMode !== "percent");
+      els.tipManualField.classList.toggle("hidden", state.tipMode !== "manual");
+      renderSide();
+    }
+
+    function addPerson() {
+      const name = els.personName.value.trim();
+      if (!name) return;
+      const handle = els.paymentHandle.value.trim();
+      state.people.push({
+        id: crypto.randomUUID(),
+        name,
+        handle,
+        color: palette[state.people.length % palette.length]
+      });
+      els.personName.value = "";
+      els.paymentHandle.value = "";
+      renderAll();
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function round2(value) {
+      return Math.round((Number(value) || 0) * 100) / 100;
+    }
+
+    function encodeShare(data) {
+      return btoa(unescape(encodeURIComponent(JSON.stringify(data)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    }
+
+    function decodeShare(value) {
+      const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+      const padded = normalized + "=".repeat((4 - normalized.length % 4) % 4);
+      return JSON.parse(decodeURIComponent(escape(atob(padded))));
+    }
+
+    function loadShareFromHash() {
+      const match = location.hash.match(/^#share=(.+)$/);
+      if (!match) return false;
+      try {
+        const data = decodeShare(match[1]);
+        state.items = [];
+        state.people = data.people.map((person, index) => ({
+          id: crypto.randomUUID(),
+          name: person.name,
+          handle: person.handle || "",
+          color: person.color || palette[index % palette.length]
+        }));
+        state.calc = data.people.map((person, index) => ({
+          person: state.people[index],
+          subtotal: person.subtotal,
+          tax: person.tax,
+          tip: person.tip,
+          total: person.total,
+          items: person.items || []
+        }));
+        els.shareText.value = [data.totals || "Receipt split", "", ...data.people.map((person) => `Hey ${person.name} - your share is ${money(person.total)}. Venmo: ${person.handle || "@"}`)].join("\n");
+        els.shareUrl.value = location.href;
+        els.shareCards.innerHTML = "";
+        state.calc.forEach((bucket) => els.shareCards.appendChild(calcCard(bucket, true)));
+        state.sharedOnly = true;
+        setStatus("Loaded a shared summary link. No receipt image is included.");
+        setStep(5);
+        return true;
+      } catch (error) {
+        setStatus("Could not read the shared summary link.");
+        return false;
+      }
+    }
+
+    els.receiptInput.addEventListener("change", (event) => handleFile(event.target.files[0]));
+    els.runOcrBtn.addEventListener("click", runOcr);
+    els.skipOcrBtn.addEventListener("click", () => {
+      if (!state.items.length) addBlankItem();
+      setStatus("Manual entry mode.");
+      setStep(2);
+    });
+    els.addItemBtn.addEventListener("click", addBlankItem);
+    els.toAssignBtn.addEventListener("click", () => setStep(3));
+    els.addPersonBtn.addEventListener("click", addPerson);
+    els.personName.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") addPerson();
+    });
+    els.toSplitBtn.addEventListener("click", () => setStep(4));
+    els.toShareBtn.addEventListener("click", () => setStep(5));
+    els.taxAmount.addEventListener("input", () => {
+      state.tax = Math.max(0, Number(els.taxAmount.value) || 0);
+      renderAll();
+    });
+    els.tipMode.addEventListener("change", () => {
+      state.tipMode = els.tipMode.value;
+      renderAll();
+    });
+    els.tipPercent.addEventListener("input", () => {
+      state.tipPercent = Math.max(0, Number(els.tipPercent.value) || 0);
+      renderAll();
+    });
+    els.tipManual.addEventListener("input", () => {
+      state.tipManual = Math.max(0, Number(els.tipManual.value) || 0);
+      renderAll();
+    });
+    document.querySelectorAll("[data-back]").forEach((button) => {
+      button.addEventListener("click", () => setStep(Number(button.dataset.back)));
+    });
+    els.copyTextBtn.addEventListener("click", async () => {
+      await navigator.clipboard.writeText(els.shareText.value);
+      els.copyTextBtn.textContent = "Copied";
+      setTimeout(() => els.copyTextBtn.textContent = "Copy message", 1200);
+    });
+    els.copyLinkBtn.addEventListener("click", async () => {
+      await navigator.clipboard.writeText(els.shareUrl.value);
+      els.copyLinkBtn.textContent = "Copied";
+      setTimeout(() => els.copyLinkBtn.textContent = "Copy link", 1200);
+    });
+
+    ["dragenter", "dragover"].forEach((eventName) => {
+      els.dropzone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        els.dropzone.classList.add("dragging");
+      });
+    });
+    ["dragleave", "drop"].forEach((eventName) => {
+      els.dropzone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        els.dropzone.classList.remove("dragging");
+      });
+    });
+    els.dropzone.addEventListener("drop", (event) => handleFile(event.dataTransfer.files[0]));
+
+    if (!loadShareFromHash()) renderAll();
+  </script>
+</body>
+</html>
