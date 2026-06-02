@@ -60,6 +60,23 @@
       opacity: .45;
     }
 
+    button.loading {
+      position: relative;
+      color: transparent;
+      pointer-events: none;
+    }
+
+    button.loading::after {
+      content: "";
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(7, 17, 15, .28);
+      border-top-color: #07110f;
+      border-radius: 50%;
+      animation: spin .9s linear infinite;
+    }
+
     input, textarea, select {
       width: 100%;
       min-height: 44px;
@@ -74,6 +91,11 @@
     input:focus, textarea:focus, select:focus {
       border-color: var(--accent);
       box-shadow: 0 0 0 3px rgba(86, 182, 167, .16);
+    }
+
+    input.invalid {
+      border-color: var(--danger);
+      box-shadow: 0 0 0 3px rgba(255, 142, 125, .14);
     }
 
     textarea {
@@ -430,6 +452,11 @@
       font-weight: 700;
     }
 
+    .chip.invalid {
+      border-color: var(--danger);
+      background: rgba(255, 142, 125, .08);
+    }
+
     .swatch {
       width: 12px;
       height: 12px;
@@ -586,7 +613,38 @@
       font-size: .9rem;
     }
 
+    .notice.error {
+      border-color: rgba(255, 142, 125, .42);
+      background: rgba(255, 142, 125, .09);
+      color: #ffc4bb;
+    }
+
+    .notice.empty {
+      border-color: rgba(168, 172, 160, .34);
+      background: rgba(168, 172, 160, .08);
+      color: var(--soft);
+    }
+
     .hidden { display: none !important; }
+
+    @media (max-width: 1024px) {
+      .shell {
+        padding: 14px;
+      }
+
+      .topbar {
+        margin: -14px -14px 14px;
+        padding: 12px 14px;
+      }
+
+      main {
+        gap: 14px;
+      }
+
+      .step {
+        padding: 16px;
+      }
+    }
 
     @media (max-width: 860px) {
       main { grid-template-columns: 1fr; }
@@ -603,6 +661,136 @@
         grid-column: 2 / 4;
       }
       .grid-2 { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 640px) {
+      body {
+        font-size: .95rem;
+      }
+
+      .shell {
+        padding: 10px;
+      }
+
+      .topbar {
+        margin: -10px -10px 10px;
+        padding: 10px;
+      }
+
+      .brandline {
+        align-items: flex-start;
+      }
+
+      h1 {
+        font-size: 1.3rem;
+      }
+
+      .subhead,
+      .lede {
+        font-size: .88rem;
+      }
+
+      .steps {
+        grid-template-columns: 1fr;
+      }
+
+      .step-dot {
+        justify-content: flex-start;
+        min-height: 44px;
+        padding: 8px 10px;
+      }
+
+      .step-dot span:last-child {
+        display: inline;
+      }
+
+      .step h2 {
+        font-size: 1.35rem;
+      }
+
+      .dropzone {
+        min-height: 220px;
+        padding: 18px;
+      }
+
+      .actions,
+      .grid-2,
+      .share-block {
+        width: 100%;
+      }
+
+      .actions > button,
+      .actions > label,
+      .field,
+      input,
+      textarea,
+      select {
+        width: 100%;
+      }
+
+      button,
+      .primary,
+      .secondary,
+      .ghost,
+      .danger,
+      .pay-links a,
+      .person-toggle {
+        min-height: 44px;
+      }
+
+      .item-row {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+      }
+
+      .item-row input:not([type="checkbox"]) {
+        grid-column: 1 / -1;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .people-bar,
+      .assign-buttons {
+        align-items: stretch;
+      }
+
+      .chip,
+      .person-toggle {
+        max-width: 100%;
+        white-space: normal;
+      }
+
+      .person-toggle {
+        flex: 1 1 calc(50% - 8px);
+      }
+
+      .calc-head,
+      .table-row,
+      .mini-list li {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 4px;
+      }
+
+      .calc-card .table {
+        display: grid;
+        gap: 8px;
+      }
+
+      .calc-card .table-row {
+        border: 1px solid rgba(74, 81, 68, .48);
+        border-radius: var(--radius);
+        padding: 9px;
+        background: rgba(255, 255, 255, .025);
+      }
+
+      .calc-card .table-row:last-child {
+        border-bottom: 1px solid rgba(74, 81, 68, .48);
+        padding-bottom: 9px;
+      }
+
+      .total {
+        font-size: 1.12rem;
+      }
     }
   </style>
 </head>
@@ -633,6 +821,7 @@
         <section class="step active" data-step="1">
           <h2>Upload a receipt</h2>
           <p class="lede">Take a photo, choose one from your gallery, or drop an image here. OCR runs inside this browser tab.</p>
+          <div class="notice error hidden" id="uploadNotice"></div>
           <div class="dropzone" id="dropzone">
             <div>
               <div class="drop-icon" aria-hidden="true">OCR</div>
@@ -664,6 +853,7 @@
         <section class="step" data-step="3">
           <h2>Assign items</h2>
           <p class="lede">Add people, then tap one or more names on each item. Shared items are divided evenly between selected people.</p>
+          <div class="notice error hidden" id="assignNotice"></div>
           <div class="grid-2">
             <div class="field">
               <label for="personName">Person</label>
@@ -688,6 +878,7 @@
         <section class="step" data-step="4">
           <h2>Split</h2>
           <p class="lede">Tax and tip are allocated proportionally by each person's assigned item subtotal.</p>
+          <div class="notice error hidden" id="splitNotice"></div>
           <div class="grid-2">
             <div class="field">
               <label for="taxAmount">Tax</label>
@@ -719,6 +910,7 @@
         <section class="step" data-step="5">
           <h2>Share</h2>
           <p class="lede">Send the plain-text summary or copy a link containing only the final split data. The receipt image is not included.</p>
+          <div class="notice error hidden" id="shareNotice"></div>
           <div class="share-block">
             <div class="field">
               <label for="shareText">Message</label>
@@ -793,6 +985,7 @@
       receiptPreview: document.querySelector("#receiptPreview"),
       emptyPreview: document.querySelector("#emptyPreview"),
       ocrStatus: document.querySelector("#ocrStatus"),
+      uploadNotice: document.querySelector("#uploadNotice"),
       ocrNotice: document.querySelector("#ocrNotice"),
       itemList: document.querySelector("#itemList"),
       addItemBtn: document.querySelector("#addItemBtn"),
@@ -802,6 +995,7 @@
       addPersonBtn: document.querySelector("#addPersonBtn"),
       peopleBar: document.querySelector("#peopleBar"),
       assignList: document.querySelector("#assignList"),
+      assignNotice: document.querySelector("#assignNotice"),
       toSplitBtn: document.querySelector("#toSplitBtn"),
       taxAmount: document.querySelector("#taxAmount"),
       tipMode: document.querySelector("#tipMode"),
@@ -810,10 +1004,12 @@
       tipPercentField: document.querySelector("#tipPercentField"),
       tipManualField: document.querySelector("#tipManualField"),
       calcList: document.querySelector("#calcList"),
+      splitNotice: document.querySelector("#splitNotice"),
       toShareBtn: document.querySelector("#toShareBtn"),
       shareText: document.querySelector("#shareText"),
       shareUrl: document.querySelector("#shareUrl"),
       shareCards: document.querySelector("#shareCards"),
+      shareNotice: document.querySelector("#shareNotice"),
       copyTextBtn: document.querySelector("#copyTextBtn"),
       copyLinkBtn: document.querySelector("#copyLinkBtn"),
       sideItemCount: document.querySelector("#sideItemCount"),
@@ -864,13 +1060,34 @@
       els.ocrStatus.innerHTML = busy ? `<span class="spinner" aria-hidden="true"></span><span>${text}</span>` : text;
     }
 
-    function showNotice(text) {
-      els.ocrNotice.textContent = text;
-      els.ocrNotice.classList.toggle("hidden", !text);
+    function setButtonLoading(button, loading) {
+      button.classList.toggle("loading", loading);
+      button.disabled = loading;
+      button.setAttribute("aria-busy", String(loading));
+    }
+
+    function showNotice(text, target = els.ocrNotice, type = "warn") {
+      if (!target) return;
+      target.textContent = text;
+      target.classList.toggle("hidden", !text);
+      target.classList.toggle("error", type === "error");
+      target.classList.toggle("empty", type === "empty");
+    }
+
+    function clearNotices() {
+      [els.uploadNotice, els.ocrNotice, els.assignNotice, els.splitNotice, els.shareNotice].forEach((notice) => showNotice("", notice));
     }
 
     function handleFile(file) {
-      if (!file || !file.type.startsWith("image/")) return;
+      showNotice("", els.uploadNotice);
+      if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        state.imageFile = null;
+        els.runOcrBtn.disabled = true;
+        setStatus("Choose an image file to run OCR.");
+        showNotice("Invalid image. Choose a JPG, PNG, WEBP, or another browser-readable image.", els.uploadNotice, "error");
+        return;
+      }
       state.imageFile = file;
       if (state.imageUrl) URL.revokeObjectURL(state.imageUrl);
       state.imageUrl = URL.createObjectURL(file);
@@ -883,8 +1100,16 @@
     }
 
     async function runOcr() {
-      if (!state.imageFile || !window.Tesseract) return;
-      els.runOcrBtn.disabled = true;
+      if (!state.imageFile) {
+        showNotice("Choose a receipt image before running OCR.", els.uploadNotice, "error");
+        return;
+      }
+      if (!window.Tesseract) {
+        showNotice("OCR is unavailable. Check your connection, then try again or enter items manually.", els.uploadNotice, "error");
+        return;
+      }
+      clearNotices();
+      setButtonLoading(els.runOcrBtn, true);
       setStatus("Reading image text...", true);
       try {
         const result = await Tesseract.recognize(state.imageFile, "eng", {
@@ -906,16 +1131,19 @@
         }
         els.taxAmount.value = state.tax.toFixed(2);
         setStatus(`OCR complete. Found ${state.items.length} possible item${state.items.length === 1 ? "" : "s"}.`);
-        showNotice(state.items.length ? "OCR can misread receipts. Confirm each item before assigning." : "No clear line items were found. Add items manually below.");
-        if (!state.items.length) addBlankItem();
+        showNotice(
+          state.items.length ? "OCR can misread receipts. Confirm each item before assigning." : "No items detected - try a clearer photo.",
+          els.ocrNotice,
+          state.items.length ? "warn" : "empty"
+        );
         setStep(2);
       } catch (error) {
         setStatus("OCR failed. You can still enter items manually.");
-        showNotice(`OCR failed: ${error.message || "unknown error"}`);
+        showNotice(`OCR failed: ${error.message || "unknown error"}`, els.ocrNotice, "error");
         if (!state.items.length) addBlankItem();
         setStep(2);
       } finally {
-        els.runOcrBtn.disabled = false;
+        setButtonLoading(els.runOcrBtn, false);
       }
     }
 
@@ -1004,17 +1232,53 @@
       };
     }
 
+    function validateItems(showErrors = true) {
+      const included = activeItems();
+      const invalidName = included.some((item) => !String(item.name).trim());
+      const invalidPrice = included.some((item) => !(Number(item.price) > 0));
+      if (showErrors) {
+        let message = "";
+        if (!included.length) message = "Include at least one item before assigning.";
+        else if (invalidName) message = "Item names cannot be empty.";
+        else if (invalidPrice) message = "Included item prices must be positive numbers.";
+        showNotice(message, els.ocrNotice, "error");
+      }
+      return Boolean(included.length && !invalidName && !invalidPrice);
+    }
+
+    function validatePeople(showErrors = true) {
+      const invalidName = state.people.some((person) => !String(person.name).trim());
+      const message = !state.people.length
+        ? "Add at least one person before calculating the split."
+        : invalidName
+          ? "Person names cannot be empty."
+          : "";
+      if (showErrors) showNotice(message, els.assignNotice, "error");
+      return Boolean(state.people.length && !invalidName);
+    }
+
+    function validateSplit(showErrors = true) {
+      const valid = validateItems(false) && validatePeople(false) && calculate().length > 0;
+      if (showErrors) {
+        showNotice(valid ? "" : "Add at least one person and one positive-priced item to create a split.", els.splitNotice, "error");
+      }
+      return valid;
+    }
+
     function renderItems() {
       els.itemList.innerHTML = "";
-      if (!state.items.length) state.items.push(newBlankItem());
+      if (!state.items.length) {
+        els.itemList.innerHTML = `<div class="notice empty">No items detected - try a clearer photo.</div>`;
+        return;
+      }
       state.items.forEach((item) => {
         const row = document.createElement("div");
         row.className = "item-row";
         row.innerHTML = `
           <input type="checkbox" aria-label="Include item" ${item.active ? "checked" : ""} data-field="active">
-          <input aria-label="Item name" value="${escapeHtml(item.name)}" data-field="name">
+          <input aria-label="Item name" class="${item.active && !String(item.name).trim() ? "invalid" : ""}" value="${escapeHtml(item.name)}" data-field="name">
           <input class="qty-input" aria-label="Quantity" type="number" inputmode="decimal" min="0" step="1" value="${item.qty}" data-field="qty">
-          <input class="price-input" aria-label="Price each" type="number" inputmode="decimal" min="0" step="0.01" value="${item.price}" data-field="price">
+          <input class="price-input ${item.active && !(Number(item.price) > 0) ? "invalid" : ""}" aria-label="Price each" type="number" inputmode="decimal" min="0.01" step="0.01" value="${item.price}" data-field="price">
           <button class="icon-button danger" type="button" title="Remove item" aria-label="Remove item" data-remove="${item.id}">x</button>
         `;
         row.querySelectorAll("[data-field]").forEach((input) => {
@@ -1024,6 +1288,7 @@
             if (field === "name") item.name = input.value;
             if (field === "qty") item.qty = Math.max(0, Number(input.value) || 0);
             if (field === "price") item.price = Math.max(0, Number(input.value) || 0);
+            showNotice("", els.ocrNotice);
             renderSide();
           });
           input.addEventListener("change", () => {
@@ -1043,7 +1308,7 @@
       els.peopleBar.innerHTML = "";
       state.people.forEach((person) => {
         const chip = document.createElement("span");
-        chip.className = "chip";
+        chip.className = `chip ${String(person.name).trim() ? "" : "invalid"}`;
         chip.style.setProperty("--chip", person.color);
         chip.innerHTML = `<span class="swatch"></span><span>${escapeHtml(person.name)}</span><button class="icon-button ghost" style="width:28px;min-height:28px" title="Remove person" aria-label="Remove ${escapeHtml(person.name)}">x</button>`;
         chip.querySelector("button").addEventListener("click", () => {
@@ -1057,6 +1322,13 @@
 
     function renderAssign() {
       els.assignList.innerHTML = "";
+      if (!activeItems().length) {
+        els.assignList.innerHTML = `<div class="notice empty">No included items yet.</div>`;
+        return;
+      }
+      if (!state.people.length) {
+        els.assignList.innerHTML = `<div class="notice">Add at least one person before calculating the split.</div>`;
+      }
       activeItems().forEach((item) => {
         const row = document.createElement("div");
         row.className = "assign-row";
@@ -1081,6 +1353,9 @@
           });
           buttons.appendChild(button);
         });
+        if (!state.people.length) {
+          buttons.innerHTML = `<div class="notice">No people added yet.</div>`;
+        }
         els.assignList.appendChild(row);
       });
     }
@@ -1207,7 +1482,12 @@
 
     function addPerson() {
       const name = els.personName.value.trim();
-      if (!name) return;
+      if (!name) {
+        showNotice("Person name cannot be empty.", els.assignNotice, "error");
+        els.personName.classList.add("invalid");
+        els.personName.focus();
+        return;
+      }
       const handle = els.paymentHandle.value.trim();
       state.people.push({
         id: crypto.randomUUID(),
@@ -1217,6 +1497,8 @@
       });
       els.personName.value = "";
       els.paymentHandle.value = "";
+      els.personName.classList.remove("invalid");
+      showNotice("", els.assignNotice);
       renderAll();
     }
 
@@ -1238,9 +1520,13 @@
     }
 
     function decodeShare(value) {
-      const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
-      const padded = normalized + "=".repeat((4 - normalized.length % 4) % 4);
-      return JSON.parse(decodeURIComponent(escape(atob(padded))));
+      try {
+        const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+        const padded = normalized + "=".repeat((4 - normalized.length % 4) % 4);
+        return JSON.parse(decodeURIComponent(escape(atob(padded))));
+      } catch (error) {
+        throw new Error("Invalid summary link data.");
+      }
     }
 
     function loadShareFromHash() {
@@ -1248,6 +1534,7 @@
       if (!match) return false;
       try {
         const data = decodeShare(match[1]);
+        if (!data || !Array.isArray(data.people)) throw new Error("Missing people.");
         state.items = [];
         state.people = data.people.map((person, index) => ({
           id: crypto.randomUUID(),
@@ -1273,6 +1560,8 @@
         return true;
       } catch (error) {
         setStatus("Could not read the shared summary link.");
+        showNotice("Invalid share link. The summary data could not be loaded.", els.shareNotice, "error");
+        showNotice("Invalid share link. The summary data could not be loaded.", els.uploadNotice, "error");
         return false;
       }
     }
@@ -1285,13 +1574,32 @@
       setStep(2);
     });
     els.addItemBtn.addEventListener("click", addBlankItem);
-    els.toAssignBtn.addEventListener("click", () => setStep(3));
+    els.toAssignBtn.addEventListener("click", () => {
+      if (!validateItems(true)) {
+        renderItems();
+        return;
+      }
+      showNotice("", els.ocrNotice);
+      setStep(3);
+    });
     els.addPersonBtn.addEventListener("click", addPerson);
     els.personName.addEventListener("keydown", (event) => {
       if (event.key === "Enter") addPerson();
     });
-    els.toSplitBtn.addEventListener("click", () => setStep(4));
-    els.toShareBtn.addEventListener("click", () => setStep(5));
+    els.personName.addEventListener("input", () => {
+      els.personName.classList.toggle("invalid", !els.personName.value.trim());
+      if (els.personName.value.trim()) showNotice("", els.assignNotice);
+    });
+    els.toSplitBtn.addEventListener("click", () => {
+      if (!validatePeople(true)) return;
+      showNotice("", els.assignNotice);
+      setStep(4);
+    });
+    els.toShareBtn.addEventListener("click", () => {
+      if (!validateSplit(true)) return;
+      showNotice("", els.splitNotice);
+      setStep(5);
+    });
     els.taxAmount.addEventListener("input", () => {
       state.tax = Math.max(0, Number(els.taxAmount.value) || 0);
       renderAll();
@@ -1312,14 +1620,24 @@
       button.addEventListener("click", () => setStep(Number(button.dataset.back)));
     });
     els.copyTextBtn.addEventListener("click", async () => {
-      await navigator.clipboard.writeText(els.shareText.value);
-      els.copyTextBtn.textContent = "Copied";
-      setTimeout(() => els.copyTextBtn.textContent = "Copy message", 1200);
+      try {
+        await navigator.clipboard.writeText(els.shareText.value);
+        showNotice("", els.shareNotice);
+        els.copyTextBtn.textContent = "Copied";
+        setTimeout(() => els.copyTextBtn.textContent = "Copy message", 1200);
+      } catch (error) {
+        showNotice("Could not copy the message. Select the text and copy it manually.", els.shareNotice, "error");
+      }
     });
     els.copyLinkBtn.addEventListener("click", async () => {
-      await navigator.clipboard.writeText(els.shareUrl.value);
-      els.copyLinkBtn.textContent = "Copied";
-      setTimeout(() => els.copyLinkBtn.textContent = "Copy link", 1200);
+      try {
+        await navigator.clipboard.writeText(els.shareUrl.value);
+        showNotice("", els.shareNotice);
+        els.copyLinkBtn.textContent = "Copied";
+        setTimeout(() => els.copyLinkBtn.textContent = "Copy link", 1200);
+      } catch (error) {
+        showNotice("Could not copy the link. Select the link and copy it manually.", els.shareNotice, "error");
+      }
     });
 
     ["dragenter", "dragover"].forEach((eventName) => {
